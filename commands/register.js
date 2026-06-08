@@ -19,24 +19,29 @@ async function execute(interaction) {
         // Extraer nombre de usuario para confirmar
         const userName = userInfo.get('userName') || userInfo.get('1') || 'Jugador Encontrado';
 
-        // Buscar si el usuario ya está vinculado
-        const existingProfile = await Profile.findOne({ userId: interaction.user.id });
+        // Buscar si el perfil de GD ya está vinculado
+        const existingProfile = await Profile.findOne({ accountID: accountID });
 
         if (existingProfile) {
             // Actualizar
-            existingProfile.accountID = accountID;
+            existingProfile.userId = interaction.user.id;
             existingProfile.playerID = playerID;
+            existingProfile.userName = userName;
             await existingProfile.save();
-            return await interaction.editReply(`✅ Tu perfil ha sido actualizado. Ahora estás vinculado a **${userName}**.`);
+            return await interaction.editReply(`✅ El perfil ha sido actualizado. Ahora estás vinculado a **${userName}**.`);
         } else {
+            // Eliminar el índice único antiguo si existe para evitar errores (ignora si no existe)
+            try { await Profile.collection.dropIndex('userId_1'); } catch(e) {}
+            
             // Crear nuevo
             const newProfile = new Profile({
                 userId: interaction.user.id,
                 accountID: accountID,
-                playerID: playerID
+                playerID: playerID,
+                userName: userName
             });
             await newProfile.save();
-            return await interaction.editReply(`✅ ¡Tu perfil de GD ha sido vinculado con éxito a **${userName}**!`);
+            return await interaction.editReply(`✅ ¡Tu perfil de GD ha sido añadido con éxito a la leaderboard como **${userName}**!`);
         }
     } catch (error) {
         console.error('Error en register.js:', error);

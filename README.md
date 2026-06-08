@@ -66,11 +66,13 @@ node deploy-commands.js
 
 Una vez que el bot esté en tu servidor, podrás interactuar con él mediante los siguientes comandos:
 
-| Comando | Parámetros | Descripción |
-| :--- | :--- | :--- |
-| `/vincular` | `accountid` *(Obligatorio)*, `playerid` *(Obligatorio)* | Vincula (o actualiza) tu cuenta de Discord con tus IDs de Geometry Dash. |
-| `/leaderboard` | `tipo` *(Obligatorio: Stars, Demons, UserCoins o Moons)* | Muestra la clasificación del servidor para la categoría elegida, actualizada al momento. |
-| `/ping` | Ninguno | Comando básico de prueba para verificar la latencia del bot. |
+| Comando | Parámetros | Descripción | Permisos requeridos |
+| :--- | :--- | :--- | :--- |
+| `/vincular` | `accountid` *(Obligatorio)*, `playerid` *(Obligatorio)* | Vincula (o actualiza) tu cuenta de Discord con tus IDs de Geometry Dash. | Ninguno |
+| `/leaderboard` | `tipo` *(Obligatorio: Stars, Demons, UserCoins o Moons)* | Muestra la clasificación del servidor para la categoría elegida, con paginación interactiva. | Ninguno |
+| `/delete_user` | Ninguno | Abre un menú interactivo para remover a un usuario registrado de la base de datos. | **Moderadores** (Permiso de *Expulsar miembros* / *Kick Members* o superior) |
+| `/ayuda` | Ninguno | Muestra una guía de comandos interactiva con el detalle y uso de cada comando. | Ninguno |
+| `/ping` | Ninguno | Comando básico de prueba para verificar la latencia del bot. | Ninguno |
 
 ---
 
@@ -79,6 +81,8 @@ Una vez que el bot esté en tu servidor, podrás interactuar con él mediante lo
 ```text
 Gd_bot/
 ├── commands/           # Definición de los comandos slash (/)
+│   ├── delete_user.js  # Herramienta de moderación para eliminar perfiles vinculados
+│   ├── help.js         # Panel explicativo e informativo de comandos (comando /ayuda)
 │   ├── leaderboard.js  # Lógica del ranking y obtención de estadísticas
 │   ├── ping.js         # Comando de latencia básica
 │   └── register.js     # Lógica de vinculación e inserción a la DB
@@ -86,7 +90,7 @@ Gd_bot/
 │   ├── interactionCreate.js # Ejecución de comandos interactivos
 │   └── ready.js             # Evento de inicio del bot
 ├── models/             # Esquemas de la base de datos (Mongoose)
-│   └── Profile.js      # Modelo de perfil de usuario (userId, accountID, playerID)
+│   └── Profile.js      # Modelo de perfil de usuario (userId, accountID, playerID, userName)
 ├── .env                # Variables de entorno secretas (no se sube a Git)
 ├── deploy-commands.js  # Script para registrar comandos de barra en Discord
 ├── index.js            # Punto de entrada principal de la aplicación

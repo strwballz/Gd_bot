@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Profile = require('../models/Profile');
 const robtopapi = require('../robtopapi');
 
@@ -60,27 +60,108 @@ module.exports = {
             // Ordenar la lista de mayor a menor según el valor de la estadística elegida
             leaderboardData.sort((a, b) => b.value - a.value);
 
-            // Crear Embed para mostrar los resultados de forma elegante
-            const embedName = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-            const embed = new EmbedBuilder()
-                .setTitle(`🏆 Tabla de Clasificación: ${embedName}`)
-                .setColor(0xFFA500) // Color naranja/dorado
-                .setTimestamp()
-                .setFooter({ text: 'Actualizado en tiempo real desde los servidores de GD' });
+            const itemsPerPage = 15;
+            const totalPages = Math.ceil(leaderboardData.length / itemsPerPage);
+            let currentPage = 0;
 
-            let description = '';
-            for (let i = 0; i < leaderboardData.length && i < 15; i++) {
-                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**${i + 1}.**`;
-                description += `${medal} **${leaderboardData[i].userName}**: ${leaderboardData[i].value.toLocaleString('en-US')}\n`;
+            const generateEmbed = (page) => {
+                const embedName = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+                const embed = new EmbedBuilder()
+                    .setTitle(`🏆 Tabla de Clasificación: ${embedName}`)
+                    .setColor(0xFFA500) // Color naranja/dorado
+                    .setTimestamp()
+                    .setFooter({ text: `Página ${page + 1} de ${totalPages} • Actualizado en tiempo real` });
+
+                const start = page * itemsPerPage;
+                const end = start + itemsPerPage;
+                const pageData = leaderboardData.slice(start, end);
+
+                let description = '';
+                pageData.forEach((user, index) => {
+                    const globalIndex = start + index;
+                    const medal = globalIndex === 0 ? '🥇' : globalIndex === 1 ? '🥈' : globalIndex === 2 ? '🥉' : `**${globalIndex + 1}.**`;
+                    description += `${medal} **${user.userName}**: ${user.value.toLocaleString('en-US')}\n`;
+                });
+
+                if (description === '') {
+                    description = 'No se encontraron datos para mostrar.';
+                }
+
+                embed.setDescription(description);
+                return embed;
+            };
+
+            const generateButtons = (page) => {
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('prev_page')
+                        .setLabel('Anterior')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId('next_page')
+                        .setLabel('Siguiente')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page >= totalPages - 1)
+                );
+                return row;
+            };
+
+            const initialEmbed = generateEmbed(currentPage);
+            
+            // Si solo hay una página, no necesitamos botones
+            if (totalPages <= 1) {
+                return await interaction.editReply({ embeds: [initialEmbed], components: [] });
             }
 
-            if (description === '') {
-                description = 'No se encontraron datos para mostrar.';
-            }
+            const initialRow = generateButtons(currentPage);
+            const responseMessage = await interaction.editReply({
+                embeds: [initialEmbed],
+                components: [initialRow]
+            });
 
-            embed.setDescription(description);
+            // Colector para manejar los clics en los botones (solo responde a quien ejecutó el comando original)
+            const collector = responseMessage.createMessageComponentCollector({
+                filter: i => i.user.id === interaction.user.id,
+                time: 60000 // Expira después de 60 segundos de inactividad
+            });
 
-            await interaction.editReply({ embeds: [embed] });
+            collector.on('collect', async i => {
+                if (i.customId === 'prev_page') {
+                    currentPage = Math.max(0, currentPage - 1);
+                } else if (i.customId === 'next_page') {
+                    currentPage = Math.min(totalPages - 1, currentPage + 1);
+                }
+
+                await i.update({
+                    embeds: [generateEmbed(currentPage)],
+                    components: [generateButtons(currentPage)]
+                });
+            });
+
+            collector.on('end', async () => {
+                // Deshabilitar los botones al finalizar el tiempo de inactividad
+                const disabledRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('prev_page')
+                        .setLabel('Anterior')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId('next_page')
+                        .setLabel('Siguiente')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(true)
+                );
+
+                try {
+                    await interaction.editReply({
+                        components: [disabledRow]
+                    });
+                } catch (err) {
+                    // Ignorar error si el mensaje fue borrado por el usuario
+                }
+            });
 
         } catch (error) {
             console.error('Error al generar leaderboard:', error);
